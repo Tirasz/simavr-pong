@@ -195,12 +195,46 @@ static void lcd_send_line2(char *str) {
 }
 
 
+// GRAPHICS ------------------------------------------------------------------
+
+#define CHAR_EMPTY_PATTERN			0
+#define CHAR_LEFT_TOP				1
+#define CHAR_LEFT_BOTTOM			2
+#define CHAR_RIGHT_TOP				3
+#define CHAR_RIGHT_BOTTOM			4
+#define CHAR_PONG_BALL				5
+#define CHAR_EMPTY_EMPTY			' '
+#define CHAR_ERROR					'X'
+
+#define CHARMAP_SIZE 6
+static unsigned char CHARMAP[CHARMAP_SIZE][8] = {
+	{ 0, 0, 0, 0, 0, 0, 0, 0 },													// CHAR_EMPTY_PATTERN
+	{ 0, 0, 0, 0, 0, 0, 0b10000, 0b10000 },										// CHAR_LEFT_TOP
+	{ 0b10000, 0b10000, 0, 0, 0, 0, 0, 0 },										// CHAR_LEFT_BOTTOM
+	{ 0, 0, 0, 0, 0, 0, 0b10000, 0b10000 },										// CHAR_RIGHT_TOP
+	{ 0b10000, 0b10000, 0, 0, 0, 0, 0, 0 },										// CHAR_RIGHT_BOTTOM
+	{ 0, 0, 0b00100, 0b01110, 0b00100, 0, 0, 0 },								// CHAR_PONG_BALL
+};
+
+
+static void chars_init() {
+	for (int c = 0; c < CHARMAP_SIZE; ++c) {
+		lcd_send_command(CG_RAM_ADDR + c*8);
+		for (int r = 0; r < 8; ++r)
+			lcd_send_data(CHARMAP[c][r]);
+	}
+}
+
+
 // THE GAME ==================================================================
 
 int main() {
 	port_init();
 	lcd_init();
+	chars_init();
 	rnd_init();
+
+
 
 	// "Splash screen"
 	lcd_send_line1("    Pong");
@@ -215,7 +249,10 @@ int main() {
 
 		// loop of the game
 		while (1) {
-			break;
+			lcd_send_command(DD_RAM_ADDR+8);
+			lcd_send_data(CHAR_LEFT_TOP);
+			lcd_send_command(DD_RAM_ADDR2+8);
+			lcd_send_data(CHAR_LEFT_BOTTOM);
 		} // end of game-loop
 
 		// playing some funeral tunes and displaying a game over screen
