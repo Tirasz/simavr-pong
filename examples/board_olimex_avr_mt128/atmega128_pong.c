@@ -213,7 +213,7 @@ static unsigned char CHARMAP[CHARMAP_SIZE][8] = {
 	{ 0b10000, 0b10000, 0, 0, 0, 0, 0, 0 },										// CHAR_LEFT_BOTTOM
 	{ 0, 0, 0, 0, 0, 0, 0b10000, 0b10000 },										// CHAR_RIGHT_TOP
 	{ 0b10000, 0b10000, 0, 0, 0, 0, 0, 0 },										// CHAR_RIGHT_BOTTOM
-	{ 0, 0, 0b00100, 0b01110, 0b00100, 0, 0, 0 },								// CHAR_PONG_BALL
+	{ 0, 0, 0, 0b00100, 0, 0, 0, 0 },								// CHAR_PONG_BALL
 };
 
 
@@ -224,6 +224,47 @@ static void chars_init() {
 			lcd_send_data(CHARMAP[c][r]);
 	}
 }
+// GAME STATE ==================================================================
+
+struct GameState {
+	unsigned char ballPositionX; // 16 character wide screen, each character is 5 pixel wide -> Range: 0 - 79
+	unsigned char ballPositionY; // 2 character tall screen, each character is 8 pixel tall --> Range: 0 - 15
+	unsigned char leftPosition; // Position of left player (4 pixels tall) --> Range: 2 - 14; 
+	unsigned char rightPosition; // Position of right player (4 pixels tall) --> Range: 2 - 14;
+	unsigned char ballSpeedX;
+	unsigned char ballSpeedY; 
+};
+
+static struct GameState gameState;
+
+static void drawBall() {
+	// In Character space (where is the ball within the custom character)
+	lcd_send_command(CG_RAM_ADDR + CHAR_PONG_BALL*8);
+	unsigned char row = (gameState.ballPositionY) % 8; // Row in character space
+	unsigned char col = (gameState.ballPositionX) % 5; // Col in character space
+	for (int r = 0; r < 8; r++) {
+		if(r != row) {
+			lcd_send_data(0);
+		} else { 
+			lcd_send_data(0b10000 >> col);	
+		}
+		
+	}
+
+	// In screen space (Where to put ball character)
+
+	row = (gameState.ballPositionY) / 8; 
+	col = (gameState.ballPositionX) / 5;
+	
+	unsigned char rowAddress = DD_RAM_ADDR;
+	if(row > 0) {
+		rowAddress = DD_RAM_ADDR2;
+	}
+	lcd_send_command(rowAddress + col);
+	lcd_send_data(CHAR_PONG_BALL);
+
+}
+
 
 
 // THE GAME ==================================================================
@@ -234,25 +275,31 @@ int main() {
 	chars_init();
 	rnd_init();
 
-
+	gameState.ballPositionX = 79;
+	gameState.ballPositionY = 15;
 
 	// "Splash screen"
-	lcd_send_line1("    Pong");
-	lcd_send_line2("    by Tirasz");
+	//lcd_send_line1("    Pong");
+	//lcd_send_line2("    by Tirasz");
 
 	// loop of the whole program, always restarts game
 	while (1) {
-		int new_pattern;
 
 		while (button_pressed() != BUTTON_CENTER) // wait till start signal
 			button_unlock(); // keep on clearing button_accept
 
 		// loop of the game
 		while (1) {
-			lcd_send_command(DD_RAM_ADDR+8);
-			lcd_send_data(CHAR_LEFT_TOP);
-			lcd_send_command(DD_RAM_ADDR2+8);
-			lcd_send_data(CHAR_LEFT_BOTTOM);
+			int button = button_pressed();
+			if(button)
+				gameState.ballPositionX += 1;
+			drawBall();
+			button_unlock();
+			//if (button == BUTTON_LEFT)
+				//gameState.ballPositionX -= 1;
+			//if (button == BUTTON_RIGHT)
+				//gameState.ballPositionX += 1;
+			//drawBall(); 
 		} // end of game-loop
 
 		// playing some funeral tunes and displaying a game over screen
