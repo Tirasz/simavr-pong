@@ -238,29 +238,33 @@ struct GameState {
 static struct GameState gameState;
 
 static void drawBall() {
-	// In Character space (where is the ball within the custom character)
-	lcd_send_command(CG_RAM_ADDR + CHAR_PONG_BALL*8);
-	unsigned char row = (gameState.ballPositionY) % 8; // Row in character space
-	unsigned char col = (gameState.ballPositionX) % 5; // Col in character space
-	for (int r = 0; r < 8; r++) {
-		if(r != row) {
-			lcd_send_data(0);
-		} else { 
-			lcd_send_data(0b10000 >> col);	
-		}
-		
+	
+	// In character space (where is the ball within the custom character)
+	unsigned char char_row = (gameState.ballPositionY) % 8;
+	unsigned char char_col = (gameState.ballPositionX) % 5; 
+
+	// In screen space (which character on the screen)
+	unsigned char scr_row = (gameState.ballPositionY) / 8; 
+	unsigned char scr_col = (gameState.ballPositionX) / 5;
+
+	// Have to draw ball on player characters TODO
+	if(scr_col == 0 || scr_col == 15) {
+		return;
 	}
 
-	// In screen space (Where to put ball character)
+	// Update ball char
+	lcd_send_command(CG_RAM_ADDR + CHAR_PONG_BALL*8);
+	for (int r = 0; r < 8; r++) {
+		lcd_send_data((0b10000 * (r == char_row)) >> char_col);
+	}
 
-	row = (gameState.ballPositionY) / 8; 
-	col = (gameState.ballPositionX) / 5;
-	
+	// Send ball char to correct location
 	unsigned char rowAddress = DD_RAM_ADDR;
-	if(row > 0) {
+	if(scr_row > 0) {
 		rowAddress = DD_RAM_ADDR2;
 	}
-	lcd_send_command(rowAddress + col);
+	
+	lcd_send_command(rowAddress + scr_col);
 	lcd_send_data(CHAR_PONG_BALL);
 
 }
@@ -275,8 +279,8 @@ int main() {
 	chars_init();
 	rnd_init();
 
-	gameState.ballPositionX = 79;
-	gameState.ballPositionY = 15;
+	gameState.ballPositionX = 0;
+	gameState.ballPositionY = 8;
 
 	// "Splash screen"
 	//lcd_send_line1("    Pong");
