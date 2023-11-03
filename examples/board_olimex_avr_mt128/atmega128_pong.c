@@ -249,6 +249,7 @@ struct GameState {
 	unsigned char rightPosition; // Position of right player (4 pixels tall) --> Range: 0 - 12;
 	unsigned char ballSpeedX;
 	unsigned char ballSpeedY; 
+	unsigned char gameSpeed;
 };
 
 static struct GameState gameState;
@@ -260,6 +261,12 @@ static void gameState_init() {
 	gameState.leftPosition = 6;
 	gameState.ballSpeedX = rnd_gen(2) ? -1 : 1;
 	gameState.ballSpeedY = rnd_gen(2) ? -1 : 1;
+	gameState.gameSpeed = 20;
+}
+
+static void updateGamestate() {
+	gameState.ballPositionX += gameState.ballSpeedX;
+	gameState.ballPositionY += gameState.ballSpeedY;
 }
 
 // GRAPHICS ==================================================================
@@ -355,7 +362,7 @@ int main() {
 	port_init();
 	lcd_init();
 	rnd_init();
-
+	char frame = 0;
 	// Loop of the whole program, always restarts game
 	while (1) {
 		// Splash screen
@@ -375,8 +382,10 @@ int main() {
 		while (1) {
 			int button = button_pressed();
 			drawGameState();
-			if(button)
-				gameState.ballPositionX += 1;
+			if(frame % gameState.gameSpeed == 0) {
+				updateGamestate();
+			}
+			frame = (frame + 1) % 60;
 			button_unlock();
 			//if (button == BUTTON_LEFT)
 				//gameState.ballPositionX -= 1;
