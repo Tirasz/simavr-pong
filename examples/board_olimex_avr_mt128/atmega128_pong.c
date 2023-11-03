@@ -334,6 +334,15 @@ static void drawBall() {
 	if(scr_col == 0 || scr_col == 15) {
 		const char char_index = (CHAR_LEFT_TOP + scr_row) * (scr_col == 0) + (CHAR_RIGHT_TOP + scr_row) * (scr_col == 15);
 		CHARMAP[char_index][char_row] = 0b10000 >> char_col;
+
+		// Clear character from previous spot
+		unsigned char rowAddress = DD_RAM_ADDR;
+		if(prev_scr_row > 0) {
+			rowAddress = DD_RAM_ADDR2;
+		}
+		
+		lcd_send_command(rowAddress + prev_scr_col);
+		lcd_send_data(CHAR_EMPTY_PATTERN);
 		return;
 	}
 
