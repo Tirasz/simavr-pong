@@ -31,7 +31,7 @@ static void rnd_init() {
 	TCNT0 = 0; 				// init counter
 }
 
-// generate a value between 0 and max
+// generate a value between 0 and max - 1
 static int rnd_gen(int max) {
 	return TCNT0 % max;
 }
@@ -258,14 +258,17 @@ static void gameState_init() {
 	gameState.ballPositionY = 8;
 	gameState.rightPosition = 6;
 	gameState.leftPosition = 6;
-	gameState.ballSpeedX = 0;
-	gameState.ballSpeedY = 0;
+	gameState.ballSpeedX = rnd_gen(2) ? -1 : 1;
+	gameState.ballSpeedY = rnd_gen(2) ? -1 : 1;
 }
 
 // GRAPHICS ==================================================================
 
 static void drawBall() {
 	
+	static char prev_scr_row = 255;
+	static char prev_scr_col = 255;
+
 	// In character space (where is the ball within the custom character)
 	unsigned const char char_row = (gameState.ballPositionY) % 8;
 	unsigned const char char_col = (gameState.ballPositionX) % 5; 
@@ -287,6 +290,17 @@ static void drawBall() {
 		lcd_send_data((0b10000 * (r == char_row)) >> char_col);
 	}
 
+	// Clear previous char before drawing new
+	if(prev_scr_col != scr_col || prev_scr_row != scr_row) {
+		unsigned char rowAddress = DD_RAM_ADDR;
+		if(prev_scr_row > 0) {
+			rowAddress = DD_RAM_ADDR2;
+		}
+		
+		lcd_send_command(rowAddress + prev_scr_col);
+		lcd_send_data(CHAR_EMPTY_PATTERN);
+	}
+
 	// Send ball char to correct location on screen
 	unsigned char rowAddress = DD_RAM_ADDR;
 	if(scr_row > 0) {
@@ -296,6 +310,8 @@ static void drawBall() {
 	lcd_send_command(rowAddress + scr_col);
 	lcd_send_data(CHAR_PONG_BALL);
 
+	prev_scr_col = scr_col;
+	prev_scr_row = scr_row;
 }
 
 static void drawPlayers() {
@@ -359,6 +375,8 @@ int main() {
 		while (1) {
 			int button = button_pressed();
 			drawGameState();
+			if(button)
+				gameState.ballPositionX += 1;
 			button_unlock();
 			//if (button == BUTTON_LEFT)
 				//gameState.ballPositionX -= 1;
