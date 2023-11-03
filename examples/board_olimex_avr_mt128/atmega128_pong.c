@@ -44,6 +44,8 @@ static int rnd_gen(int max) {
 #define BUTTON_LEFT		2
 #define BUTTON_RIGHT	3
 #define BUTTON_UP		4
+#define BUTTON_DOWN     5
+
 static int button_accept = 1;
 
 static int button_pressed() {
@@ -63,6 +65,12 @@ static int button_pressed() {
 	if (!(PINA & 0b00000100) & button_accept) { // check state of button 3 and value of button_accept
 		button_accept = 0; // button is pressed
 		return BUTTON_CENTER;
+	}
+
+	// down
+	if (!(PINA & 0b00001000) & button_accept) { // check state of button 3 and value of button_accept
+		button_accept = 0; // button is pressed
+		return BUTTON_DOWN;
 	}
 
 	// left
@@ -269,13 +277,13 @@ static void start_round() {
 	gameState.leftPosition = 6;
 	gameState.ballSpeedX = rnd_gen(2) ? -1 : 1;
 	gameState.ballSpeedY = rnd_gen(2) ? -1 : 1;
+	gameState.gameSpeed = 7;
 	players_init();	
 }
 
 static void gameState_init() {
 	gameState.p1Score = 0;
 	gameState.p2Score = 0;
-	gameState.gameSpeed = 7;
 	start_round();
 }
 
@@ -313,6 +321,22 @@ static void updateGameState() {
 	// Move ball
 	gameState.ballPositionX += gameState.ballSpeedX;
 	gameState.ballPositionY += gameState.ballSpeedY;
+}
+
+static void movePlayer1(int dir) {
+	int newPos = gameState.leftPosition + dir;
+	if(newPos > 12 || newPos < 0){
+		return;
+	}
+	gameState.leftPosition = newPos;	
+}
+
+static void movePlayer2(int dir) {
+	int newPos = gameState.rightPosition + dir;
+	if(newPos > 12 || newPos < 0){
+		return;
+	}
+	gameState.rightPosition = newPos;	
 }
 
 // GRAPHICS ==================================================================
@@ -438,7 +462,7 @@ int main() {
 		// loop of the game
 		while (1) {
 			switch(gameState.state) {
-				case GAMESTATE_SHOW_SCORE:
+				case GAMESTATE_SHOW_SCORE: 
 					lcd_send_command(CLR_DISP);
 					snprintf(score_text, 16, " %d            %d ", gameState.p1Score, gameState.p2Score);
 					lcd_send_line1(score_text);
@@ -450,17 +474,34 @@ int main() {
 					start_round();
 				break;
 				case GAMESTATE_GAME_OVER:
-				lcd_send_command(CLR_DISP);
-				lcd_send_line1("    GAME OVER   ");
-				lcd_send_line2((gameState.p1Score > gameState.p2Score) ? "    P1  WINS!" : "    P2  WINS!");
-				while (button_pressed() != BUTTON_CENTER){ // wait till start signal
-					button_unlock(); // keep on clearing button_accept
-				}
-				lcd_send_command(CLR_DISP);
-				gameState_init();
+					lcd_send_command(CLR_DISP);
+					lcd_send_line1("    GAME OVER   ");
+					lcd_send_line2((gameState.p1Score > gameState.p2Score) ? "    P1  WINS!" : "    P2  WINS!");
+					while (button_pressed() != BUTTON_CENTER){ // wait till start signal
+						button_unlock(); // keep on clearing button_accept
+					}
+					lcd_send_command(CLR_DISP);
+					gameState_init();
 				break;
 				case GAMESTATE_RUNNING:
 					drawGameState();
+					int button = button_pressed();
+
+					switch(button) {
+						case BUTTON_UP:
+							movePlayer1(1);
+						break;
+						case BUTTON_DOWN:
+							movePlayer1(-1);
+						break;
+						case BUTTON_LEFT:
+							movePlayer2(1);
+						break;
+						case BUTTON_RIGHT:
+							movePlayer2(-1);
+						break;
+					}
+
 					if(frame % gameState.gameSpeed == 0) {
 						updateGameState();
 					}
