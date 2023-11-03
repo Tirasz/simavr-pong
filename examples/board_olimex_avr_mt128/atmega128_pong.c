@@ -207,13 +207,14 @@ static void lcd_send_line2(char *str) {
 #define CHAR_ERROR					'X'
 
 #define CHARMAP_SIZE 6
+// CHARMAP[character][row]
 static unsigned char CHARMAP[CHARMAP_SIZE][8] = {
-	{ 0, 0, 0, 0, 0, 0, 0, 0 },													// CHAR_EMPTY_PATTERN
+	{ 0, 0, 0, 0, 0, 0, 0, 0 },										// CHAR_EMPTY_PATTERN
 	{ 0, 0, 0, 0, 0, 0, 0, 0 },										// CHAR_LEFT_TOP
 	{ 0, 0, 0, 0, 0, 0, 0, 0 },										// CHAR_LEFT_BOTTOM
 	{ 0, 0, 0, 0, 0, 0, 0, 0 },										// CHAR_RIGHT_TOP
 	{ 0, 0, 0, 0, 0, 0, 0, 0 },										// CHAR_RIGHT_BOTTOM
-	{ 0, 0, 0, 0, 0, 0, 0, 0 },								            // CHAR_PONG_BALL
+	{ 0, 0, 0, 0, 0, 0, 0, 0 },								        // CHAR_PONG_BALL
 };
 
 
@@ -247,8 +248,10 @@ static void drawBall() {
 	unsigned const char scr_row = (gameState.ballPositionY) / 8; 
 	unsigned const char scr_col = (gameState.ballPositionX) / 5;
 
-	// Have to draw ball on player characters TODO
+	// Have to draw ball on player characters
 	if(scr_col == 0 || scr_col == 15) {
+		const char char_index = (CHAR_LEFT_TOP + scr_row) * (scr_col == 0) + (CHAR_RIGHT_TOP + scr_row) * (scr_col == 15);
+		CHARMAP[char_index][char_row] = 0b10000 >> char_col;
 		return;
 	}
 
@@ -281,14 +284,18 @@ static void drawPlayers() {
 		lcd_send_command(CG_RAM_ADDR + p1_char_address * 8);
 		for (int i = 0; i < 8; i++) {
 			shouldPaint = ( i + (scr_row * 8) >= gameState.leftPosition && i + (scr_row * 8) < gameState.leftPosition + 4 );
-			lcd_send_data(0b10000 * shouldPaint);
+			lcd_send_data((0b10000 * shouldPaint) | CHARMAP[p1_char_address][i]);
+			// Clear charmap hack
+			CHARMAP[p1_char_address][i] = 0;
 		}
 
 		// Setting special char for P2
 		lcd_send_command(CG_RAM_ADDR + p2_char_address * 8);
 		for (int i = 0; i < 8; i++) {
 			shouldPaint = ( i + (scr_row * 8) >= gameState.rightPosition && i + (scr_row * 8) < gameState.rightPosition + 4 );
-			lcd_send_data(0b00001 * shouldPaint);
+			lcd_send_data((0b00001 * shouldPaint) | CHARMAP[p2_char_address][i]);
+			// Clear charmap hack
+			CHARMAP[p2_char_address][i] = 0;
 		}
 	}
 }
@@ -318,8 +325,8 @@ int main() {
 	rnd_init();
 	players_init();											
 
-	gameState.ballPositionX = 40;
-	gameState.ballPositionY = 8;
+	gameState.ballPositionX = 1;
+	gameState.ballPositionY = 1;
 	gameState.rightPosition = 1;
 	gameState.leftPosition = 0;
 
@@ -337,7 +344,8 @@ int main() {
 		while (1) {
 			int button = button_pressed();
 			if(button)
-				gameState.leftPosition += 1;
+				gameState.ballPositionX += 1;
+				gameState.ballPositionY += 1;
 			drawBall();
 			drawPlayers();
 			button_unlock();
