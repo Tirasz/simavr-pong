@@ -209,11 +209,11 @@ static void lcd_send_line2(char *str) {
 #define CHARMAP_SIZE 6
 static unsigned char CHARMAP[CHARMAP_SIZE][8] = {
 	{ 0, 0, 0, 0, 0, 0, 0, 0 },													// CHAR_EMPTY_PATTERN
-	{ 0, 0, 0, 0, 0, 0, 0b10000, 0b10000 },										// CHAR_LEFT_TOP
-	{ 0b10000, 0b10000, 0, 0, 0, 0, 0, 0 },										// CHAR_LEFT_BOTTOM
-	{ 0, 0, 0, 0, 0, 0, 0b10000, 0b10000 },										// CHAR_RIGHT_TOP
-	{ 0b10000, 0b10000, 0, 0, 0, 0, 0, 0 },										// CHAR_RIGHT_BOTTOM
-	{ 0, 0, 0, 0b00100, 0, 0, 0, 0 },								// CHAR_PONG_BALL
+	{ 0, 0, 0, 0, 0, 0, 0, 0 },										// CHAR_LEFT_TOP
+	{ 0, 0, 0, 0, 0, 0, 0, 0 },										// CHAR_LEFT_BOTTOM
+	{ 0, 0, 0, 0, 0, 0, 0, 0 },										// CHAR_RIGHT_TOP
+	{ 0, 0, 0, 0, 0, 0, 0, 0 },										// CHAR_RIGHT_BOTTOM
+	{ 0, 0, 0, 0, 0, 0, 0, 0 },								            // CHAR_PONG_BALL
 };
 
 
@@ -229,8 +229,8 @@ static void chars_init() {
 struct GameState {
 	unsigned char ballPositionX; // 16 character wide screen, each character is 5 pixel wide -> Range: 0 - 79
 	unsigned char ballPositionY; // 2 character tall screen, each character is 8 pixel tall --> Range: 0 - 15
-	unsigned char leftPosition; // Position of left player (4 pixels tall) --> Range: 2 - 14; 
-	unsigned char rightPosition; // Position of right player (4 pixels tall) --> Range: 2 - 14;
+	unsigned char leftPosition; // Position of left player (4 pixels tall) --> Range: 0 - 12; 
+	unsigned char rightPosition; // Position of right player (4 pixels tall) --> Range: 0 - 12;
 	unsigned char ballSpeedX;
 	unsigned char ballSpeedY; 
 };
@@ -240,12 +240,12 @@ static struct GameState gameState;
 static void drawBall() {
 	
 	// In character space (where is the ball within the custom character)
-	unsigned char char_row = (gameState.ballPositionY) % 8;
-	unsigned char char_col = (gameState.ballPositionX) % 5; 
+	unsigned const char char_row = (gameState.ballPositionY) % 8;
+	unsigned const char char_col = (gameState.ballPositionX) % 5; 
 
 	// In screen space (which character on the screen)
-	unsigned char scr_row = (gameState.ballPositionY) / 8; 
-	unsigned char scr_col = (gameState.ballPositionX) / 5;
+	unsigned const char scr_row = (gameState.ballPositionY) / 8; 
+	unsigned const char scr_col = (gameState.ballPositionX) / 5;
 
 	// Have to draw ball on player characters TODO
 	if(scr_col == 0 || scr_col == 15) {
@@ -258,7 +258,7 @@ static void drawBall() {
 		lcd_send_data((0b10000 * (r == char_row)) >> char_col);
 	}
 
-	// Send ball char to correct location
+	// Send ball char to correct location on screen
 	unsigned char rowAddress = DD_RAM_ADDR;
 	if(scr_row > 0) {
 		rowAddress = DD_RAM_ADDR2;
@@ -269,7 +269,45 @@ static void drawBall() {
 
 }
 
+static void drawPlayers() {
+	// For each character row on screen
+	for (int scr_row = 0; scr_row < 2; scr_row++) {
+		// Setting character addresses for each player based on row
+		unsigned char p1_char_address = CHAR_LEFT_TOP * (scr_row == 0) + CHAR_LEFT_BOTTOM * (scr_row == 1);
+		unsigned char p2_char_address = CHAR_RIGHT_TOP * (scr_row == 0) + CHAR_RIGHT_BOTTOM * (scr_row == 1);
+		unsigned char shouldPaint = 0;
 
+		// Setting special char for P1
+		lcd_send_command(CG_RAM_ADDR + p1_char_address * 8);
+		for (int i = 0; i < 8; i++) {
+			shouldPaint = ( i + (scr_row * 8) >= gameState.leftPosition && i + (scr_row * 8) < gameState.leftPosition + 4 );
+			lcd_send_data(0b10000 * shouldPaint);
+		}
+
+		// Setting special char for P2
+		lcd_send_command(CG_RAM_ADDR + p2_char_address * 8);
+		for (int i = 0; i < 8; i++) {
+			shouldPaint = ( i + (scr_row * 8) >= gameState.rightPosition && i + (scr_row * 8) < gameState.rightPosition + 4 );
+			lcd_send_data(0b00001 * shouldPaint);
+		}
+	}
+}
+
+
+static void players_init() {
+	// Draw player characters (Their position on screen wont change)
+	lcd_send_command(DD_RAM_ADDR);
+	lcd_send_data(CHAR_LEFT_TOP);
+
+	lcd_send_command(DD_RAM_ADDR2);
+	lcd_send_data(CHAR_LEFT_BOTTOM);
+
+	lcd_send_command(DD_RAM_ADDR + 15);
+	lcd_send_data(CHAR_RIGHT_TOP);
+
+	lcd_send_command(DD_RAM_ADDR2 + 15);
+	lcd_send_data(CHAR_RIGHT_BOTTOM);
+}
 
 // THE GAME ==================================================================
 
@@ -278,9 +316,12 @@ int main() {
 	lcd_init();
 	chars_init();
 	rnd_init();
+	players_init();											
 
-	gameState.ballPositionX = 0;
+	gameState.ballPositionX = 40;
 	gameState.ballPositionY = 8;
+	gameState.rightPosition = 1;
+	gameState.leftPosition = 0;
 
 	// "Splash screen"
 	//lcd_send_line1("    Pong");
@@ -296,8 +337,9 @@ int main() {
 		while (1) {
 			int button = button_pressed();
 			if(button)
-				gameState.ballPositionX += 1;
+				gameState.leftPosition += 1;
 			drawBall();
+			drawPlayers();
 			button_unlock();
 			//if (button == BUTTON_LEFT)
 				//gameState.ballPositionX -= 1;
