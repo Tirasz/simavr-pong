@@ -225,6 +225,21 @@ static void chars_init() {
 			lcd_send_data(CHARMAP[c][r]);
 	}
 }
+
+static void players_init() {
+	// Draw player characters (Their position on screen wont change)
+	lcd_send_command(DD_RAM_ADDR);
+	lcd_send_data(CHAR_LEFT_TOP);
+
+	lcd_send_command(DD_RAM_ADDR2);
+	lcd_send_data(CHAR_LEFT_BOTTOM);
+
+	lcd_send_command(DD_RAM_ADDR + 15);
+	lcd_send_data(CHAR_RIGHT_TOP);
+
+	lcd_send_command(DD_RAM_ADDR2 + 15);
+	lcd_send_data(CHAR_RIGHT_BOTTOM);
+}
 // GAME STATE ==================================================================
 
 struct GameState {
@@ -237,6 +252,17 @@ struct GameState {
 };
 
 static struct GameState gameState;
+
+static void gameState_init() {
+	gameState.ballPositionX = 40;
+	gameState.ballPositionY = 8;
+	gameState.rightPosition = 6;
+	gameState.leftPosition = 6;
+	gameState.ballSpeedX = 0;
+	gameState.ballSpeedY = 0;
+}
+
+// GRAPHICS ==================================================================
 
 static void drawBall() {
 	
@@ -300,54 +326,39 @@ static void drawPlayers() {
 	}
 }
 
-
-static void players_init() {
-	// Draw player characters (Their position on screen wont change)
-	lcd_send_command(DD_RAM_ADDR);
-	lcd_send_data(CHAR_LEFT_TOP);
-
-	lcd_send_command(DD_RAM_ADDR2);
-	lcd_send_data(CHAR_LEFT_BOTTOM);
-
-	lcd_send_command(DD_RAM_ADDR + 15);
-	lcd_send_data(CHAR_RIGHT_TOP);
-
-	lcd_send_command(DD_RAM_ADDR2 + 15);
-	lcd_send_data(CHAR_RIGHT_BOTTOM);
+static void drawGameState() {
+	// Have to make sure to draw ball first because of charmap hack lol
+	drawBall();
+	drawPlayers();
 }
+
 
 // THE GAME ==================================================================
 
 int main() {
 	port_init();
 	lcd_init();
-	chars_init();
 	rnd_init();
-	players_init();											
 
-	gameState.ballPositionX = 1;
-	gameState.ballPositionY = 1;
-	gameState.rightPosition = 1;
-	gameState.leftPosition = 0;
-
-	// "Splash screen"
-	//lcd_send_line1("    Pong");
-	//lcd_send_line2("    by Tirasz");
-
-	// loop of the whole program, always restarts game
+	// Loop of the whole program, always restarts game
 	while (1) {
+		// Splash screen
+		lcd_send_line1("    Pong");
+		lcd_send_line2("    by Tirasz");
 
-		while (button_pressed() != BUTTON_CENTER) // wait till start signal
+		while (button_pressed() != BUTTON_CENTER){ // wait till start signal
 			button_unlock(); // keep on clearing button_accept
+		}
+
+		// Clear display, init game graphics and state
+		lcd_send_command(CLR_DISP); 
+		players_init();											
+		gameState_init();
 
 		// loop of the game
 		while (1) {
 			int button = button_pressed();
-			if(button)
-				gameState.ballPositionX += 1;
-				gameState.ballPositionY += 1;
-			drawBall();
-			drawPlayers();
+			drawGameState();
 			button_unlock();
 			//if (button == BUTTON_LEFT)
 				//gameState.ballPositionX -= 1;
