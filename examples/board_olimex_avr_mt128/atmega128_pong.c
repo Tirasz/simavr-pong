@@ -250,21 +250,54 @@ struct GameState {
 	unsigned char ballSpeedX;
 	unsigned char ballSpeedY; 
 	unsigned char gameSpeed;
+	unsigned char state;
+	unsigned char p1Score;
+	unsigned char p2Score;
 };
 
 static struct GameState gameState;
 
+#define GAMESTATE_GAME_OVER 0
+#define GAMESTATE_SHOW_SCORE 1
+#define GAMESTATE_RUNNING 2
+
 static void gameState_init() {
+	gameState.state = GAMESTATE_SHOW_SCORE;
+	gameState.p1Score = 0;
+	gameState.p2Score = 0;
 	gameState.ballPositionX = 40;
 	gameState.ballPositionY = 8;
 	gameState.rightPosition = 6;
 	gameState.leftPosition = 6;
 	gameState.ballSpeedX = rnd_gen(2) ? -1 : 1;
 	gameState.ballSpeedY = rnd_gen(2) ? -1 : 1;
-	gameState.gameSpeed = 20;
+	gameState.gameSpeed = 7;
 }
 
 static void updateGamestate() {
+
+	// Flip vertical (direction) on vertical collision
+	if (gameState.ballPositionY == 0 || gameState.ballPositionY == 15) {
+		gameState.ballSpeedY *= -1;
+	}
+
+	// Flip horizontal (direction) on horizontal collision with player
+	// Otherwise game over or idk yet
+	if (gameState.ballPositionX == 0 || gameState.ballPositionX == 79) {
+		char posToCheck = gameState.ballSpeedX == 1 ? gameState.rightPosition : gameState.leftPosition;
+		if (gameState.ballPositionY >= posToCheck && gameState.ballPositionY < posToCheck + 4) {
+			// Hit player
+			gameState.ballSpeedX *= -1;
+			if(gameState.gameSpeed >= 3)
+				gameState.gameSpeed -= 2;
+		} else {
+			// Player missed TODO
+			gameState.ballSpeedX *= -1;
+			if(gameState.gameSpeed >= 3)
+				gameState.gameSpeed -= 2;
+		}
+	}
+
 	gameState.ballPositionX += gameState.ballSpeedX;
 	gameState.ballPositionY += gameState.ballSpeedY;
 }
