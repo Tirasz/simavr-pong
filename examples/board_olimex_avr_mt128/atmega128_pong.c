@@ -10,7 +10,7 @@ AVR_MCU(F_CPU, "atmega128");
 
 #define	__AVR_ATmega128__	1
 #include <avr/io.h>
-
+#include <stdio.h>
 
 // GENERAL INIT - USED BY ALMOST EVERYTHING ----------------------------------
 
@@ -261,43 +261,56 @@ static struct GameState gameState;
 #define GAMESTATE_SHOW_SCORE 1
 #define GAMESTATE_RUNNING 2
 
-static void gameState_init() {
-	gameState.state = GAMESTATE_SHOW_SCORE;
-	gameState.p1Score = 0;
-	gameState.p2Score = 0;
+static void start_round() {
+	gameState.state = GAMESTATE_RUNNING;
 	gameState.ballPositionX = 40;
 	gameState.ballPositionY = 8;
 	gameState.rightPosition = 6;
 	gameState.leftPosition = 6;
 	gameState.ballSpeedX = rnd_gen(2) ? -1 : 1;
 	gameState.ballSpeedY = rnd_gen(2) ? -1 : 1;
-	gameState.gameSpeed = 7;
+	players_init();	
 }
 
-static void updateGamestate() {
+static void gameState_init() {
+	gameState.p1Score = 0;
+	gameState.p2Score = 0;
+	gameState.gameSpeed = 7;
+	start_round();
+}
 
-	// Flip vertical (direction) on vertical collision
+static void updateGameState() {
+
+	// Detect horizontal collision
 	if (gameState.ballPositionY == 0 || gameState.ballPositionY == 15) {
 		gameState.ballSpeedY *= -1;
 	}
 
-	// Flip horizontal (direction) on horizontal collision with player
-	// Otherwise game over or idk yet
+	// Detect vertical collision
 	if (gameState.ballPositionX == 0 || gameState.ballPositionX == 79) {
 		char posToCheck = gameState.ballSpeedX == 1 ? gameState.rightPosition : gameState.leftPosition;
+
+		// Player blocked
 		if (gameState.ballPositionY >= posToCheck && gameState.ballPositionY < posToCheck + 4) {
-			// Hit player
-			gameState.ballSpeedX *= -1;
-			if(gameState.gameSpeed >= 3)
-				gameState.gameSpeed -= 2;
-		} else {
-			// Player missed TODO
+			
 			gameState.ballSpeedX *= -1;
 			if(gameState.gameSpeed >= 3)
 				gameState.gameSpeed -= 2;
 		}
+		// Player failed to block
+		else {
+			// Update score
+			if(gameState.ballSpeedX == 1) 
+				gameState.p1Score += 1;
+			else 
+				gameState.p2Score += 1;
+			
+			// Update gameState to display score or game over screen
+			gameState.state = (gameState.p1Score > 9 || gameState.p2Score > 9) ? GAMESTATE_GAME_OVER : GAMESTATE_SHOW_SCORE;
+		}
 	}
 
+	// Move ball
 	gameState.ballPositionX += gameState.ballSpeedX;
 	gameState.ballPositionY += gameState.ballSpeedY;
 }
@@ -395,7 +408,10 @@ int main() {
 	port_init();
 	lcd_init();
 	rnd_init();
+
+	char score_text[17];
 	char frame = 0;
+
 	// Loop of the whole program, always restarts game
 	while (1) {
 		// Splash screen
@@ -407,24 +423,34 @@ int main() {
 		}
 
 		// Clear display, init game graphics and state
-		lcd_send_command(CLR_DISP); 
-		players_init();											
+		lcd_send_command(CLR_DISP); 										
 		gameState_init();
 
 		// loop of the game
 		while (1) {
-			int button = button_pressed();
-			drawGameState();
-			if(frame % gameState.gameSpeed == 0) {
-				updateGamestate();
+			switch(gameState.state) {
+				case GAMESTATE_SHOW_SCORE:
+					lcd_send_command(CLR_DISP);
+					snprintf(score_text, 16, " %d            %d ", gameState.p1Score, gameState.p2Score);
+					lcd_send_line1(score_text);
+					lcd_send_line2("Press to play");
+					while (button_pressed() != BUTTON_CENTER){ // wait till start signal
+						button_unlock(); // keep on clearing button_accept
+					}
+					lcd_send_command(CLR_DISP);
+					start_round();
+				break;
+				case GAMESTATE_GAME_OVER:
+				break;
+				case GAMESTATE_RUNNING:
+					drawGameState();
+					if(frame % gameState.gameSpeed == 0) {
+						updateGameState();
+					}
+				break;
 			}
 			frame = (frame + 1) % 60;
 			button_unlock();
-			//if (button == BUTTON_LEFT)
-				//gameState.ballPositionX -= 1;
-			//if (button == BUTTON_RIGHT)
-				//gameState.ballPositionX += 1;
-			//drawBall(); 
 		} // end of game-loop
 
 		// playing some funeral tunes and displaying a game over screen
