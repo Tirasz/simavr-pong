@@ -306,7 +306,7 @@ static void updateGameState() {
 				gameState.p2Score += 1;
 			
 			// Update gameState to display score or game over screen
-			gameState.state = (gameState.p1Score > 9 || gameState.p2Score > 9) ? GAMESTATE_GAME_OVER : GAMESTATE_SHOW_SCORE;
+			gameState.state = (gameState.p1Score > 3 || gameState.p2Score > 3) ? GAMESTATE_GAME_OVER : GAMESTATE_SHOW_SCORE;
 		}
 	}
 
@@ -441,6 +441,14 @@ int main() {
 					start_round();
 				break;
 				case GAMESTATE_GAME_OVER:
+				lcd_send_command(CLR_DISP);
+				lcd_send_line1("    GAME OVER   ");
+				lcd_send_line2((gameState.p1Score > gameState.p2Score) ? "    P1  WINS!" : "    P2  WINS!");
+				while (button_pressed() != BUTTON_CENTER){ // wait till start signal
+					button_unlock(); // keep on clearing button_accept
+				}
+				lcd_send_command(CLR_DISP);
+				gameState_init();
 				break;
 				case GAMESTATE_RUNNING:
 					drawGameState();
@@ -452,10 +460,6 @@ int main() {
 			frame = (frame + 1) % 60;
 			button_unlock();
 		} // end of game-loop
-
-		// playing some funeral tunes and displaying a game over screen
-		lcd_send_line1("    GAME OVER   ");
-		lcd_send_line2("Click to restart");
 
 	} // end of program-loop, we never quit
 }
