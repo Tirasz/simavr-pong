@@ -300,7 +300,6 @@ static void updateGameState() {
 
 		// Player blocked
 		if (gameState.ballPositionY >= posToCheck && gameState.ballPositionY < posToCheck + 4) {
-			
 			gameState.ballSpeedX *= -1;
 			if(gameState.gameSpeed >= 3)
 				gameState.gameSpeed -= 2;
@@ -343,6 +342,7 @@ static void movePlayer2(int dir) {
 
 static void drawBall() {
 	
+	// The screen space position of the ball in the previous frame
 	static char prev_scr_row = 255;
 	static char prev_scr_col = 255;
 
@@ -356,7 +356,8 @@ static void drawBall() {
 
 	// Have to draw ball on player characters
 	if(scr_col == 0 || scr_col == 15) {
-		const char char_index = (CHAR_LEFT_TOP + scr_row) * (scr_col == 0) + (CHAR_RIGHT_TOP + scr_row) * (scr_col == 15);
+		// Put a pixel on the player character based on the balls position
+		const char char_index = (scr_col == 0) ? (CHAR_LEFT_TOP + scr_row) : (CHAR_RIGHT_TOP + scr_row);
 		CHARMAP[char_index][char_row] = 0b10000 >> char_col;
 
 		// Clear character from previous spot
@@ -404,8 +405,8 @@ static void drawPlayers() {
 	// For each character row on screen
 	for (int scr_row = 0; scr_row < 2; scr_row++) {
 		// Setting character addresses for each player based on row
-		unsigned char p1_char_address = CHAR_LEFT_TOP * (scr_row == 0) + CHAR_LEFT_BOTTOM * (scr_row == 1);
-		unsigned char p2_char_address = CHAR_RIGHT_TOP * (scr_row == 0) + CHAR_RIGHT_BOTTOM * (scr_row == 1);
+		unsigned char p1_char_address = (scr_row == 0) ? CHAR_LEFT_TOP : CHAR_LEFT_BOTTOM;
+		unsigned char p2_char_address = (scr_row == 0) ? CHAR_RIGHT_TOP : CHAR_RIGHT_BOTTOM;
 		unsigned char shouldPaint = 0;
 
 		// Setting special char for P1
